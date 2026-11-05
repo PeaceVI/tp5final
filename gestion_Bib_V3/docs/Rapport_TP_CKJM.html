@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Rapport TP CKJM</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  body { font-family: "Segoe UI", Calibri, Arial, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.4; background: #fff; }
+  h1 { font-size: 17pt; margin: 0 0 2px; text-align: center; }
+  .sub { text-align: center; color: #555; margin-bottom: 14px; }
+  h2 { font-size: 13pt; border-bottom: 2px solid #2c5282; color: #2c5282; margin: 18px 0 6px; padding-bottom: 2px; }
+  h3 { font-size: 11pt; margin: 12px 0 4px; }
+  table { border-collapse: collapse; width: 100%; margin: 6px 0 8px; font-size: 9.5pt; }
+  th, td { border: 1px solid #999; padding: 3px 6px; text-align: center; }
+  th { background: #e2e8f0; }
+  td.l, th.l { text-align: left; }
+  .good { background: #e6f4ea; }
+  .bad { background: #fde8e8; }
+  code, pre { font-family: Consolas, "Courier New", monospace; font-size: 9pt; }
+  pre { background: #f4f4f4; border: 1px solid #ddd; padding: 6px 8px; white-space: pre-wrap; margin: 4px 0; }
+  .note { background: #fff8e1; border-left: 4px solid #f0b429; padding: 5px 9px; margin: 6px 0; }
+  ul, ol { margin: 4px 0 4px 20px; padding: 0; }
+  li { margin: 2px 0; }
+  .pb { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<h1>TP Qualité Logicielle — Métriques OO avec CKJM</h1>
+<div class="sub">Projet <b>Gestion_Bib V2</b> · outil CKJM 1.8 (résultats identiques avec CKJM 1.9) · JDK 1.8</div>
+
+<h2>Partie 1 — Préparation de l'environnement</h2>
+<pre>javac -encoding UTF-8 -source 1.8 -target 1.8 -d bin src\library\app\*.java src\library\model\*.java src\library\service\*.java
+java -cp "bin;ckjm-1.8.jar" gr.spinellis.ckjm.MetricsFilter bin\library\app\LibraryApp.class bin\library\model\Book.class ^
+     bin\library\model\DigitalBook.class bin\library\model\Lendable.class bin\library\service\Customer.class ^
+     bin\library\service\Library.class &gt; metrics.txt</pre>
+<div class="note"><b>Remarque :</b> la commande de l'énoncé <code>java -cp bin;ckjm-1.8.jar -jar ckjm-1.8.jar …</code> ignore l'option <code>-cp</code> (avec <code>-jar</code>, Java n'utilise que le classpath du jar). CKJM ne trouve alors pas <code>Book</code> (<i>ClassNotFoundException</i>) et affiche à tort <b>DIT = 0</b> pour <code>DigitalBook</code>. En lançant la classe principale <code>MetricsFilter</code> avec <code>-cp</code>, on obtient la valeur correcte <b>DIT = 2</b> (Object → Book → DigitalBook). Le dossier <code>bin</code> doit aussi exister avant <code>javac -d bin</code>.</div>
+
+<h2>1. Synthèse des métriques obtenues (version initiale)</h2>
+<p>Sortie CKJM : <code>WMC DIT NOC CBO RFC LCOM Ca NPM</code>. CKJM 1.8 n'affiche pas Ce ; comme CKJM ignore les classes du JDK, <b>Ce = CBO</b> ici (dépendances sortantes vers les classes du projet). I = Ce / (Ca + Ce).</p>
+<table>
+<tr><th class="l">Classe</th><th>WMC</th><th>DIT</th><th>NOC</th><th>CBO</th><th>RFC</th><th>LCOM</th><th>Ca</th><th>Ce</th><th>NPM</th><th>I</th></tr>
+<tr><td class="l">library.model.Book</td><td class="bad">7</td><td>1</td><td>1</td><td>1</td><td class="bad">13</td><td class="bad">5</td><td>3</td><td>1</td><td>7</td><td>0,25</td></tr>
+<tr><td class="l">library.model.DigitalBook</td><td>2</td><td>2</td><td>0</td><td>1</td><td>3</td><td>0</td><td>1</td><td>1</td><td>2</td><td>0,50</td></tr>
+<tr><td class="l">library.model.Lendable</td><td>2</td><td>1</td><td>0</td><td>0</td><td>2</td><td>1</td><td>4</td><td>0</td><td>2</td><td>0,00</td></tr>
+<tr><td class="l">library.service.Library</td><td class="bad">5</td><td>1</td><td>0</td><td class="bad">2</td><td class="bad">18</td><td>0</td><td>1</td><td>2</td><td>5</td><td>0,67</td></tr>
+<tr><td class="l">library.service.Customer</td><td>3</td><td>1</td><td>0</td><td>1</td><td>10</td><td>0</td><td>0</td><td>1</td><td>3</td><td>1,00</td></tr>
+<tr><td class="l">library.app.LibraryApp</td><td>2</td><td>1</td><td>0</td><td class="bad">4</td><td>10</td><td>1</td><td>0</td><td>4</td><td>2</td><td>1,00</td></tr>
+</table>
+
+<h3>Exercice 1.1 — Signification des métriques CK</h3>
+<table>
+<tr><th>Métrique</th><th class="l">Nom complet</th><th class="l">Ce qu'elle mesure</th></tr>
+<tr><td>WMC</td><td class="l">Weighted Methods per Class</td><td class="l">Complexité interne : nombre de méthodes (poids 1 dans CKJM). Élevé → classe lourde à tester et maintenir.</td></tr>
+<tr><td>DIT</td><td class="l">Depth of Inheritance Tree</td><td class="l">Profondeur d'héritage depuis Object. Élevé → comportement hérité plus difficile à prévoir.</td></tr>
+<tr><td>NOC</td><td class="l">Number of Children</td><td class="l">Nombre de sous-classes directes. Élevé → forte réutilisation, mais une modification impacte beaucoup d'enfants.</td></tr>
+<tr><td>CBO</td><td class="l">Coupling Between Objects</td><td class="l">Nombre d'autres classes auxquelles la classe est couplée. Élevé → fragilité, faible réutilisabilité.</td></tr>
+<tr><td>RFC</td><td class="l">Response For a Class</td><td class="l">Méthodes propres + méthodes appelées (pouvant être exécutées en réponse à un message). Élevé → difficile à tester.</td></tr>
+<tr><td>LCOM</td><td class="l">Lack of Cohesion of Methods</td><td class="l">Paires de méthodes ne partageant aucun attribut moins celles qui en partagent. Élevé → classe à plusieurs responsabilités.</td></tr>
+<tr><td>Ca</td><td class="l">Afferent Coupling</td><td class="l">Classes qui dépendent de celle-ci (entrantes) → responsabilité / stabilité.</td></tr>
+<tr><td>Ce</td><td class="l">Efferent Coupling</td><td class="l">Classes dont celle-ci dépend (sortantes) → instabilité.</td></tr>
+</table>
+
+<h3>Exercice 1.2 — Classes à valeurs élevées</h3>
+<ul>
+<li><b>a. WMC élevé :</b> <code>Book</code> (7), puis <code>Library</code> (5).</li>
+<li><b>b. CBO élevé :</b> <code>LibraryApp</code> (4 : Library, Book, DigitalBook, Lendable), puis <code>Library</code> (2 : Lendable <i>et</i> Book, à cause du <code>instanceof Book</code>).</li>
+<li><b>c. RFC élevé :</b> <code>Library</code> (18 : ArrayList, Iterator, PrintStream, StringBuilder, getters de Book…), puis <code>Book</code> (13).</li>
+<li><b>d. LCOM élevé :</b> <code>Book</code> (5) : <code>complexMethodExample</code> n'utilise aucun attribut, <code>getTitle</code>/<code>getAuthor</code> et <code>borrow</code>/<code>returnItem</code> manipulent des attributs disjoints.</li>
+</ul>
+
+<h2>2. Interprétation critique (Exercice 2)</h2>
+<ol>
+<li><b>Classe la plus complexe : <code>Book</code>.</b> Elle cumule le WMC (7) et le LCOM (5) les plus élevés, un RFC de 13, et c'est la classe concrète la plus utilisée (Ca = 3, NOC = 1) : toute modification se propage à DigitalBook, Library et LibraryApp. Elle contient en plus <code>complexMethodExample</code> (complexité cyclomatique 4) sans rapport avec un livre, et fait de l'affichage console. <code>Library</code> a le RFC maximal (18) : c'est la classe la plus difficile à tester isolément.</li>
+<li><b>Classes les plus cohésives : <code>Library</code> et <code>Customer</code></b> (LCOM = 0) : toutes leurs méthodes travaillent sur la même liste (<code>items</code> / <code>checkedOutItems</code>). <code>DigitalBook</code> a aussi LCOM = 0 (une seule méthode utilisant son attribut).</li>
+<li><b>Corrélation WMC / RFC :</b> oui, positive mais pas proportionnelle (coefficient de Pearson ≈ <b>0,72</b> sur les 6 classes). Book (7/13) et Library (5/18) sont en tête des deux. Mais RFC compte aussi les méthodes <i>appelées</i> : <code>LibraryApp</code> n'a que 2 méthodes mais un RFC de 10, et Library dépasse Book en RFC avec moins de méthodes. Plus de méthodes ⇒ souvent plus de réponses, mais le couplage pèse autant que la taille.</li>
+<li><b>Indicateurs de faible réutilisabilité :</b> CBO élevé (LibraryApp, Library), et surtout la dépendance de <code>Library</code> à la classe concrète <code>Book</code> (<code>instanceof</code> + cast) : Library ne peut pas gérer d'autre type de <code>Lendable</code> (affichage « Unknown item type »). LCOM élevé de Book (responsabilités mélangées), et appels à <code>System.out</code> dans les classes métier (RFC gonflé, I/O impossible à réutiliser hors console).</li>
+<li><b>Stabilité des packages</b> (couplages inter-packages) :
+<table>
+<tr><th>Package</th><th>Ca (classes externes dépendantes)</th><th>Ce (classes externes utilisées)</th><th>I = Ce/(Ca+Ce)</th><th>A (abstraction)</th></tr>
+<tr><td>library.model</td><td>3 (Library, Customer, LibraryApp)</td><td>0</td><td class="good">0,00</td><td>1/3</td></tr>
+<tr><td>library.service</td><td>1 (LibraryApp)</td><td>2 (Lendable, Book)</td><td class="bad">0,67</td><td>0</td></tr>
+</table>
+<code>library.model</code> est <b>le plus stable</b> (Ca élevé, Ce nul) : c'est normal pour un package métier, mais il doit alors être abstrait (principe SAP). <code>library.service</code> est instable et dépend d'une classe concrète du modèle.</li>
+</ol>
+
+<h2 class="pb">3. Propositions de refactoring (Exercice 3.1)</h2>
+<ol>
+<li><b>Extraire la méthode de démonstration hors de <code>Book</code> (SRP, Extract Class + Extract Method).</b> <code>complexMethodExample</code> est déplacée dans <code>library.util.NumberClassifier</code> ; la chaîne if/else-if est extraite dans <code>classify(int)</code>, la boucle dans <code>printSequence(int)</code>.</li>
+<li><b>Réduire le couplage <code>Library → Book</code> par l'interface (DIP, polymorphisme).</b> <code>Lendable</code> expose <code>isBorrowed()</code> et <code>getDescription()</code> ; <code>Library</code> n'utilise plus <code>instanceof</code>/cast et ne dépend plus que de <code>Lendable</code>. Corrige aussi le bug de <code>getAvailableItems()</code> qui ignorait l'état emprunté.</li>
+<li><b>Séparer logique métier et affichage.</b> <code>borrow()</code>/<code>returnItem()</code> renvoient un <code>boolean</code> au lieu d'imprimer un message ; <code>listAllItems()</code> renvoie une liste de descriptions et c'est <code>LibraryApp</code> qui affiche.</li>
+<li><b>Encapsulation :</b> attributs <code>final</code>, initialisation à la déclaration, ajout de <code>Customer.getName()</code> (l'attribut <code>name</code> était inutilisé).</li>
+</ol>
+
+<h3>Exercice 3.2 — Effet des refactorings sur les métriques</h3>
+<ul>
+<li><b>Extraction de méthode → ↓ WMC</b> (pondéré par la complexité) : une méthode longue à plusieurs branches devient des méthodes courtes, chacune de faible complexité cyclomatique ; extraire vers une autre classe diminue le WMC de la classe d'origine.</li>
+<li><b>Encapsulation d'attributs → ↓ CBO</b> : les clients passent par des méthodes de l'objet au lieu de manipuler sa structure ou d'autres objets qu'il contient (loi de Déméter) ; moins de classes connues ⇒ moins de couplage.</li>
+<li><b>Fusion ou découpage de classes → ↓ LCOM</b> : découper une classe qui regroupe des méthodes travaillant sur des attributs disjoints produit des classes cohésives ; fusionner des classes trop éclatées qui partagent les mêmes données réduit aussi le manque de cohésion.</li>
+<li><b>Introduction d'interfaces → ↑ abstraction (A) et ↓ instabilité (I)</b> : les clients dépendent d'une abstraction stable plutôt que de classes concrètes ; le package qui la contient gagne en A, et les packages clients ont moins de dépendances concrètes sortantes (Ce ↓ ⇒ I ↓).</li>
+</ul>
+
+<h2>4. Nouvelle version du code (extraits) — dossier <code>gestion_bib_refactored/</code></h2>
+<pre>public interface Lendable {                       // library.model
+    boolean borrow();  boolean returnItem();
+    boolean isBorrowed();  String getDescription();
+}
+
+public List&lt;Lendable&gt; getAvailableItems() {         // library.service.Library
+    List&lt;Lendable&gt; available = new ArrayList&lt;&gt;();
+    for (Lendable item : items)
+        if (!item.isBorrowed()) available.add(item);  // bug corrigé
+    return available;
+}
+public List&lt;String&gt; listAllItems() {                 // plus d'instanceof ni de cast
+    List&lt;String&gt; descriptions = new ArrayList&lt;&gt;();
+    for (Lendable item : items) descriptions.add(item.getDescription());
+    return descriptions;
+}
+
+public static String classify(int i) {                // library.util.NumberClassifier
+    if (i % 2 == 0) return "is even";
+    if (i % 3 == 0) return "divisible by 3";
+    return "something else";
+}</pre>
+<p>Le programme produit exactement la même sortie qu'avant (liste des 3 livres puis la séquence 0 à 9).</p>
+
+<h2>5. Comparaison avant / après refactoring</h2>
+<table>
+<tr><th class="l">Classe</th><th>WMC</th><th>CBO</th><th>RFC</th><th>LCOM</th><th>Ca</th><th>NPM</th></tr>
+<tr><td class="l">Book</td><td>7 → 7</td><td>1 → 1</td><td class="good">13 → 11</td><td>5 → 5</td><td class="good">3 → 2</td><td>7 → 7</td></tr>
+<tr><td class="l">DigitalBook</td><td>2 → 2</td><td>1 → 1</td><td>3 → 3</td><td>0 → 0</td><td>1 → 1</td><td>2 → 2</td></tr>
+<tr><td class="l">Lendable</td><td class="bad">2 → 4</td><td>0 → 0</td><td>2 → 4</td><td class="bad">1 → 6</td><td>4 → 4</td><td>2 → 4</td></tr>
+<tr><td class="l">Library</td><td>5 → 5</td><td class="good">2 → 1</td><td class="good">18 → 14</td><td>0 → 0</td><td>1 → 1</td><td>5 → 5</td></tr>
+<tr><td class="l">Customer</td><td>3 → 4</td><td>1 → 1</td><td>10 → 11</td><td>0 → 0</td><td>0 → 0</td><td>3 → 4</td></tr>
+<tr><td class="l">LibraryApp</td><td>2 → 2</td><td>4 → 5</td><td>10 → 13</td><td>1 → 1</td><td>0 → 0</td><td>2 → 2</td></tr>
+<tr><td class="l">NumberClassifier (nouvelle)</td><td>3</td><td>0</td><td>9</td><td>3</td><td>1</td><td>2</td></tr>
+</table>
+<table>
+<tr><th>Indicateur</th><th>Avant</th><th>Après</th></tr>
+<tr><td>Complexité cyclomatique totale de Book</td><td>12</td><td class="good">9</td></tr>
+<tr><td>Dépendances de <code>Library</code> vers des classes concrètes</td><td>1 (Book)</td><td class="good">0</td></tr>
+<tr><td>Instabilité du package <code>service</code> (Ce/(Ca+Ce))</td><td>0,67</td><td class="good">0,50</td></tr>
+<tr><td>Abstraction du package <code>model</code></td><td>1/3</td><td>1/3 (interface enrichie)</td></tr>
+</table>
+<p><b>Évolution :</b> les gains portent sur les classes visées : <b>Library</b> (CBO 2→1, RFC 18→14) n'est plus liée à Book, et <b>Book</b> perd une dépendance entrante (Ca 3→2), son RFC (13→11) et 3 points de complexité cyclomatique. Le WMC de Book reste 7 car CKJM donne un poids de 1 à chaque méthode : la méthode complexe a été remplacée par un simple <code>getDescription()</code>, ce que CKJM ne distingue pas. Le LCOM de Book reste 5 : la classe mélange encore informations bibliographiques (title, author) et état de prêt (borrowed). Les hausses sont attendues : le LCOM de <code>Lendable</code> (6) est un artefact (une interface n'a pas d'attributs, donc aucune paire de méthodes n'en partage) ; <code>LibraryApp</code> (CBO 5, RFC 13) est le point d'assemblage de l'application, où le couplage est normal (I = 1).</p>
+
+<h2>6. Conclusion</h2>
+<p>CKJM a permis de repérer objectivement les points faibles : <code>Book</code> peu cohésive et trop sollicitée, <code>Library</code> couplée à une classe concrète avec un RFC élevé. Le refactoring (extraction de classe/méthode, dépendance à l'interface, séparation métier/affichage) rend <code>Library</code> extensible à tout nouveau type de <code>Lendable</code> sans modification (principe ouvert/fermé), rend les classes du modèle testables sans console, et corrige un bug fonctionnel. Les métriques montrent aussi leurs limites : leur somme ne baisse pas forcément (nouvelle classe, interface plus riche), et CKJM ne mesure ni la complexité cyclomatique ni le sens des dépendances. Il faut donc les interpréter classe par classe et en lien avec la conception. Prochaine étape possible : séparer l'état de prêt de <code>Book</code> (classe <code>Loan</code> ou classe abstraite <code>AbstractLendable</code>) pour réduire son LCOM.</p>
+
+</body>
+</html>
